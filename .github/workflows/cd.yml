@@ -117,8 +117,8 @@ jobs:
 
           if [ -n "${{ secrets.APP_ENV_FILE }}" ]; then
             cat > .env <<"ENVEOF"
-${{ secrets.APP_ENV_FILE }}
-ENVEOF
+            ${{ secrets.APP_ENV_FILE }}
+            ENVEOF
           fi
 
           if [ -f .env ]; then
