@@ -94,10 +94,6 @@ jobs:
           tar -xzf releases/release.tar.gz -C current
           cd current
 
-          if [ -n "${{ secrets.APP_ENV_FILE }}" ]; then
-            cat > .env <<"ENVEOF"
-${{ secrets.APP_ENV_FILE }}
-ENVEOF
           fi
 
           npm ci --omit=dev
