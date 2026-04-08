@@ -53,12 +53,12 @@ jobs:
     timeout-minutes: 20
     environment: production
     env:
-      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-      APP_NAME: ${{ vars.APP_NAME || 'nant-be' }}
-      RUN_MIGRATE_DEPLOY: ${{ vars.RUN_MIGRATE_DEPLOY || 'true' }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      APP_NAME: ${{ secrets.APP_NAME || 'nant-be' }}
+      RUN_MIGRATE_DEPLOY: ${{ secrets.RUN_MIGRATE_DEPLOY || 'true' }}
 
     steps:
       - name: Download release artifact
