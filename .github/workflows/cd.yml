@@ -115,11 +115,27 @@ jobs:
           tar -xzf releases/release.tar.gz -C current
           cd current
 
+          if [ -n "${{ secrets.APP_ENV_FILE }}" ]; then
+            cat > .env <<"ENVEOF"
+${{ secrets.APP_ENV_FILE }}
+ENVEOF
+          fi
+
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
 
           npm ci --omit=dev
           npx prisma generate
 
           if [ "$RUN_MIGRATE_DEPLOY" = "true" ]; then
+            if [ -z "$DATABASE_URL" ]; then
+              echo "DATABASE_URL is missing. Set APP_ENV_FILE secret (or provide DATABASE_URL in server env)."
+              exit 1
+            fi
             npx prisma migrate deploy
           fi
 
