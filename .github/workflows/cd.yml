@@ -59,6 +59,7 @@ jobs:
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
       APP_NAME: ${{ secrets.APP_NAME || 'nant-be' }}
       RUN_MIGRATE_DEPLOY: ${{ secrets.RUN_MIGRATE_DEPLOY || 'true' }}
+      APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
 
     steps:
       - name: Download release artifact
@@ -115,10 +116,8 @@ jobs:
           tar -xzf releases/release.tar.gz -C current
           cd current
 
-          if [ -n "${{ secrets.APP_ENV_FILE }}" ]; then
-            cat > .env <<"ENVEOF"
-            ${{ secrets.APP_ENV_FILE }}
-            ENVEOF
+          if [ -n "$APP_ENV_FILE" ]; then
+            printf '%s\n' "$APP_ENV_FILE" > .env
           fi
 
           if [ -f .env ]; then
