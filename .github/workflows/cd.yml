@@ -60,6 +60,7 @@ jobs:
       APP_NAME: ${{ secrets.APP_NAME || 'nant-be' }}
       RUN_MIGRATE_DEPLOY: ${{ secrets.RUN_MIGRATE_DEPLOY || 'true' }}
       APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Download release artifact
@@ -96,8 +97,19 @@ jobs:
 
       - name: Deploy on server
         run: |
+          APP_ENV_FILE_B64=""
+          DATABASE_URL_B64=""
+
+          if [ -n "$APP_ENV_FILE" ]; then
+            APP_ENV_FILE_B64="$(printf '%s' "$APP_ENV_FILE" | base64 | tr -d '\n')"
+          fi
+
+          if [ -n "$DATABASE_URL" ]; then
+            DATABASE_URL_B64="$(printf '%s' "$DATABASE_URL" | base64 | tr -d '\n')"
+          fi
+
           ssh -p "${DEPLOY_PORT:-22}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' APP_NAME='$APP_NAME' RUN_MIGRATE_DEPLOY='$RUN_MIGRATE_DEPLOY' bash -s" <<'EOF'
+            "DEPLOY_PATH='$DEPLOY_PATH' APP_NAME='$APP_NAME' RUN_MIGRATE_DEPLOY='$RUN_MIGRATE_DEPLOY' APP_ENV_FILE_B64='$APP_ENV_FILE_B64' DATABASE_URL_B64='$DATABASE_URL_B64' bash -s" <<'EOF'
           set -e
 
           # Load nvm for non-interactive SSH shells when available.
@@ -116,14 +128,18 @@ jobs:
           tar -xzf releases/release.tar.gz -C current
           cd current
 
-          if [ -n "$APP_ENV_FILE" ]; then
-            printf '%s\n' "$APP_ENV_FILE" > .env
+          if [ -n "$APP_ENV_FILE_B64" ]; then
+            printf '%s' "$APP_ENV_FILE_B64" | base64 -d > .env
           fi
 
           if [ -f .env ]; then
             set -a
             . ./.env
             set +a
+          fi
+
+          if [ -z "$DATABASE_URL" ] && [ -n "$DATABASE_URL_B64" ]; then
+            export DATABASE_URL="$(printf '%s' "$DATABASE_URL_B64" | base64 -d)"
           fi
 
 
