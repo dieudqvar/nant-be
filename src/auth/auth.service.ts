@@ -21,6 +21,10 @@ export class AuthService {
 
   async register(createUserDto: CreateUserDto) {
     const { email, password, name, phone, role } = createUserDto;
+    const safeRole: Role =
+      role === Role.ADMIN || role === Role.FAMILY || role === Role.WORKER
+        ? role
+        : Role.WORKER;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
@@ -41,7 +45,7 @@ export class AuthService {
         email,
         name,
         phone,
-        role: role || Role.WORKER,
+        role: safeRole,
         password: hashedPassword,
       },
     });
