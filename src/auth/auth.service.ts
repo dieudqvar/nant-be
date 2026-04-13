@@ -204,7 +204,9 @@ export class AuthService {
     const response = await fetch(url);
 
     if (!response.ok) {
-      this.logger.warn('Google token verification failed with non-200 response');
+      this.logger.warn(
+        'Google token verification failed with non-200 response',
+      );
       throw new UnauthorizedException('Invalid Google token');
     }
 

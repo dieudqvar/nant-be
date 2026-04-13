@@ -5,7 +5,7 @@ import { IsEnum, IsOptional, IsString } from 'class-validator';
 export class GoogleCallbackDto {
   @ApiProperty({
     description: 'Google ID token from OAuth flow',
-    example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6Ij...'
+    example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6Ij...',
   })
   @IsString()
   idToken: string;
@@ -19,4 +19,3 @@ export class GoogleCallbackDto {
   @IsEnum(Role)
   role?: Role;
 }
-
