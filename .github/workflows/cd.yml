@@ -13,42 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  release-artifact:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Build
-        run: npm run build
-
-      - name: Package build output
-        run: |
-          tar -czf release.tar.gz dist package.json package-lock.json prisma
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nest-release
-          path: release.tar.gz
-          retention-days: 7
-
   deploy:
-    needs: release-artifact
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -64,11 +29,6 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
-      - name: Download release artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: nest-release
-
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -90,11 +50,6 @@ jobs:
           test -n "$DEPLOY_PATH" || (echo "Missing DEPLOY_PATH" && exit 1)
           echo "Deploy target: $DEPLOY_USER@$DEPLOY_HOST:${DEPLOY_PORT:-22}"
           echo "Deploy path: $DEPLOY_PATH"
-
-      - name: Upload package to server
-        run: |
-          ssh -p "${DEPLOY_PORT:-22}" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/releases' '$DEPLOY_PATH/current'"
-          scp -P "${DEPLOY_PORT:-22}" release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/release.tar.gz"
 
       - name: Deploy on server
         run: |
@@ -125,9 +80,22 @@ jobs:
             exit 127
           fi
 
+          if ! command -v git >/dev/null 2>&1; then
+            echo "git not found on server PATH. Install git before deploy."
+            exit 127
+          fi
+
           cd "$DEPLOY_PATH"
-          tar -xzf releases/release.tar.gz -C current
-          cd current
+
+          if [ ! -d .git ]; then
+            echo "DEPLOY_PATH is not a git repository: $DEPLOY_PATH"
+            echo "Please clone your repository on the server first."
+            exit 1
+          fi
+
+          # Always deploy the latest code from origin/main.
+          git fetch origin main
+          git reset --hard origin/main
 
           if [ -n "$APP_ENV_FILE_B64" ]; then
             printf '%s' "$APP_ENV_FILE_B64" | base64 -d > .env
@@ -144,8 +112,9 @@ jobs:
           fi
 
 
-          npm ci --omit=dev
+          npm ci
           npx prisma generate
+          npm run build
 
           if [ "$RUN_MIGRATE_DEPLOY" = "true" ]; then
             if [ -z "$DATABASE_URL" ]; then
@@ -167,6 +136,7 @@ jobs:
 
           if command -v pm2 >/dev/null 2>&1; then
             pm2 restart "$APP_NAME" || pm2 start dist/main.js --name "$APP_NAME"
+            pm2 save
           else
             echo "pm2 not found on server. Please install pm2 or adjust deploy command."
             exit 1
