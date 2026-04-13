@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role, User } from '@prisma/client';
+import { Role, User, WorkerDocumentType } from '@prisma/client';
 import { compare, hash } from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -190,13 +190,40 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        worker: {
+          include: {
+            documents: {
+              where: { type: WorkerDocumentType.PROFILE_PHOTO },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                fileUrl: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    const { password, ...safeUser } = user;
+    const profilePhotoUrl = user.worker?.documents?.[0]?.fileUrl ?? null;
+
+    return {
+      ...safeUser,
+      worker: user.worker
+        ? {
+            ...user.worker,
+            profilePhotoUrl,
+          }
+        : null,
+    };
   }
 
   private async verifyGoogleIdToken(idToken: string): Promise<GoogleTokenInfo> {
