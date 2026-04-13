@@ -58,6 +58,7 @@ model Worker {
   userId                    Int                @unique
   employeeCode              String?            @unique
   bio                       String?
+  experience                String?
   jobTypes                  JobType[]
   languages                 String[] // JSON array of language skills
   services                  String[] // JSON array of services offered

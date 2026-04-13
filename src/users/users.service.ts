@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -82,12 +83,20 @@ export class UsersService {
     const { page = 1, limit = 10 } = pagination;
     const skip = (page - 1) * limit;
 
+    const where: Prisma.WorkerWhereInput = {
+      isApproved: true,
+    };
+
+    if (filters?.experience) {
+      where.experience = {
+        contains: String(filters.experience),
+        mode: 'insensitive',
+      };
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.worker.findMany({
-        where: {
-          isApproved: true,
-          ...filters,
-        },
+        where,
         skip,
         take: limit,
         include: {
@@ -102,10 +111,7 @@ export class UsersService {
         },
       }),
       this.prisma.worker.count({
-        where: {
-          isApproved: true,
-          ...filters,
-        },
+        where,
       }),
     ]);
 
@@ -250,7 +256,19 @@ export class UsersService {
   async createWorkerProfile(userId: number, dto: CreateWorkerDto) {
     return this.prisma.worker.create({
       data: {
-        ...dto,
+        employeeCode: dto.employeeCode,
+        bio: dto.bio,
+        experience: dto.experience,
+        jobTypes: dto.jobTypes,
+        languages: dto.languages,
+        services: dto.services,
+        hourlyRate: dto.hourlyRate,
+        dailyRate: dto.dailyRate,
+        travelRate: dto.travelRate,
+        nonSmoker: dto.nonSmoker,
+        hasReliableTransportation: dto.hasReliableTransportation,
+        availability: dto.availability,
+        certifications: dto.certifications,
         userId,
       },
       include: {
@@ -260,7 +278,22 @@ export class UsersService {
   }
 
   async updateWorkerProfile(id: number, dto: UpdateWorkerDto) {
-    const { ...updateData } = dto;
+    const updateData: Prisma.WorkerUpdateInput = {
+      employeeCode: dto.employeeCode,
+      bio: dto.bio,
+      experience: dto.experience,
+      jobTypes: dto.jobTypes,
+      languages: dto.languages,
+      services: dto.services,
+      hourlyRate: dto.hourlyRate,
+      dailyRate: dto.dailyRate,
+      travelRate: dto.travelRate,
+      nonSmoker: dto.nonSmoker,
+      hasReliableTransportation: dto.hasReliableTransportation,
+      availability: dto.availability,
+      certifications: dto.certifications,
+    };
+
     return this.prisma.worker.update({
       where: { id },
       data: updateData,
