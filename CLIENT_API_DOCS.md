@@ -139,11 +139,71 @@ Notes:
 - `worker` can be `null` when user has not created worker profile.
 - `worker.profilePhotoUrl` is derived from latest `PROFILE_PHOTO` document.
 
+### `POST /auth/forgot-password`
+Request a password reset link. An email with a reset link will be sent if the address is registered.
+
+Body:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+Success response (`200`):
+```json
+{
+  "message": "If that email exists, a reset link has been sent."
+}
+```
+
+Notes:
+- Always returns `200` regardless of whether the email exists (prevents email enumeration).
+- Reset link format: `{APP_URL}/reset-password?token=<jwt_token>`
+- Token expires in **15 minutes**.
+
+---
+
+### `POST /auth/reset-password`
+Set a new password using the token received via email.
+
+Body:
+```json
+{
+  "token": "<token_from_email_link>",
+  "newPassword": "NewPass@123"
+}
+```
+
+Success response (`200`):
+```json
+{
+  "message": "Password has been reset successfully."
+}
+```
+
+Error responses:
+- `400 Invalid token` — token is malformed or missing
+- `400 Reset link is invalid or has expired` — token expired (>15 min) or already used
+- `404 User not found`
+
+Notes:
+- `newPassword` minimum length: **6 characters**.
+- After a successful reset the token is **immediately invalid** — cannot be reused.
+- If the user requests multiple reset links only the **latest** link is valid; earlier tokens are invalidated automatically.
+
+---
+
 ### FE integration flow (Google)
 1. FE logs user in with Google and gets `idToken`.
 2. FE calls `POST /auth/google/callback` with JSON body.
 3. FE stores `access_token` from response.
 4. FE includes `Authorization: Bearer <access_token>` for protected APIs.
+
+### FE integration flow (Forgot password)
+1. User submits email on "Forgot password" screen → FE calls `POST /auth/forgot-password`.
+2. User opens email, clicks link → FE extracts `token` from query string.
+3. User submits new password → FE calls `POST /auth/reset-password` with `{ token, newPassword }`.
+4. On success, redirect user to login.
 
 ---
 

@@ -18,6 +18,8 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { LoginDto } from './dto/login.dto';
 import { GoogleCallbackDto } from './dto/google-callback.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 type AuthenticatedRequest = {
   user?: {
@@ -66,6 +68,21 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid Google token' })
   async googleCallbackLegacy(@Query() query: GoogleCallbackDto) {
     return this.authService.loginWithGoogleIdToken(query.idToken, query.role);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Request a password reset link via email' })
+  @ApiResponse({ status: 200, description: 'Reset link sent if email exists' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password using token from email' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
   @Get('me')

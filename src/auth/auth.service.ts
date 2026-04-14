@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +13,7 @@ import { Role, User, WorkerDocumentType } from '@prisma/client';
 import { compare, hash } from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { MailService } from './mail.service';
 
 type GoogleTokenInfo = {
   aud?: string;
@@ -27,6 +30,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -224,6 +228,65 @@ export class AuthService {
           }
         : null,
     };
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // Always return the same message to avoid email enumeration
+    if (!user) {
+      return { message: 'If that email exists, a reset link has been sent.' };
+    }
+
+    // Sign a short-lived token using a secret derived from the user's current password hash
+    // — the token becomes invalid automatically once the password is changed.
+    const secret = this.configService.get<string>('JWT_SECRET')! + user.password;
+    const token = this.jwtService.sign(
+      { sub: user.id, email: user.email },
+      { secret, expiresIn: '15m' },
+    );
+
+    const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
+    const resetLink = `${appUrl}/reset-password?token=${token}`;
+
+    await this.mailService.sendPasswordResetEmail(email, resetLink);
+
+    return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    // Decode without verifying first to get the user id
+    let payload: { sub: number; email: string };
+    try {
+      payload = this.jwtService.decode(token) as { sub: number; email: string };
+    } catch {
+      throw new BadRequestException('Invalid token');
+    }
+
+    if (!payload?.sub) {
+      throw new BadRequestException('Invalid token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify the token using the secret derived from the current password hash
+    const secret = this.configService.get<string>('JWT_SECRET')! + user.password;
+    try {
+      this.jwtService.verify(token, { secret });
+    } catch {
+      throw new BadRequestException('Reset link is invalid or has expired');
+    }
+
+    const hashedPassword = await hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password has been reset successfully.' };
   }
 
   private async verifyGoogleIdToken(idToken: string): Promise<GoogleTokenInfo> {
