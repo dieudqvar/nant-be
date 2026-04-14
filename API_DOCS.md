@@ -33,11 +33,34 @@ curl -X POST http://localhost:3000/auth/login \
 
 ### GET /auth/me
 
-Get current user (requires JWT)
+Get current user (requires JWT). If user has worker profile, response includes worker data and `worker.profilePhotoUrl` from latest `PROFILE_PHOTO` document.
 
 ```bash
 curl -X GET http://localhost:3000/auth/me \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Example response:
+
+```json
+{
+  "id": 12,
+  "email": "worker@example.com",
+  "name": "Worker A",
+  "role": "WORKER",
+  "worker": {
+    "id": 21,
+    "userId": 12,
+    "profilePhotoUrl": "https://nanny-asset.sgp1.cdn.digitaloceanspaces.com/workers/profile/1712999999999-avatar.jpg",
+    "documents": [
+      {
+        "id": 77,
+        "fileUrl": "https://nanny-asset.sgp1.cdn.digitaloceanspaces.com/workers/profile/1712999999999-avatar.jpg",
+        "createdAt": "2026-04-13T09:10:00.000Z"
+      }
+    ]
+  }
+}
 ```
 
 ---
@@ -143,6 +166,19 @@ curl -X POST http://localhost:3000/users/workers/1/documents \
 
 Use `type = PROFILE_PHOTO` for profile photo metadata.
 For compliance documents, use types such as `ID_CARD_LEVEL_2`, `HEALTH_CERT`, `REFERENCE_LETTER`, etc.
+
+### DELETE /users/workers/:workerId/documents/:docId
+
+Delete one worker document (requires JWT).
+
+```bash
+curl -X DELETE http://localhost:3000/users/workers/1/documents/77 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Returns:
+- `200` success (empty body)
+- `404` if document not found for that worker
 
 ### POST /workers/:id/training-attempts
 

@@ -82,7 +82,17 @@ export class ApplicationsService {
               select: { id: true, name: true, email: true, phone: true },
             },
             documents: true,
-            reviews: true,
+            references: true,
+            reviews: {
+              include: {
+                family: {
+                  include: {
+                    user: { select: { name: true } },
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
           },
         },
       },

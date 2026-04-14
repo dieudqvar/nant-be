@@ -93,7 +93,51 @@ Query example:
 `/auth/google/callback?idToken=<google_id_token>&role=WORKER`
 
 ### `GET /auth/me` (Auth)
-Get current user from token.
+Get current user from token (includes worker profile photo URL if worker profile exists).
+
+Success response (`200`) example:
+```json
+{
+  "id": 12,
+  "email": "worker@example.com",
+  "name": "Worker A",
+  "phone": "0901234567",
+  "role": "WORKER",
+  "createdAt": "2026-04-13T09:00:00.000Z",
+  "updatedAt": "2026-04-13T09:00:00.000Z",
+  "worker": {
+    "id": 21,
+    "userId": 12,
+    "employeeCode": "WK-2026-0001",
+    "bio": "Patient and energetic nanny with infant care experience.",
+    "jobTypes": ["BABYSITTING", "NANNY"],
+    "languages": ["Vietnamese", "English"],
+    "services": ["Feeding", "Diapering"],
+    "hourlyRate": 120000,
+    "dailyRate": 900000,
+    "travelRate": 100000,
+    "nonSmoker": true,
+    "hasReliableTransportation": true,
+    "availability": ["Monday", "Tuesday"],
+    "certifications": ["CPR", "First Aid"],
+    "isApproved": false,
+    "verificationStatus": "PENDING",
+    "profilePhotoUrl": "https://nanny-asset.sgp1.cdn.digitaloceanspaces.com/workers/profile/1712999999999-avatar.jpg",
+    "documents": [
+      {
+        "id": 77,
+        "fileUrl": "https://nanny-asset.sgp1.cdn.digitaloceanspaces.com/workers/profile/1712999999999-avatar.jpg",
+        "createdAt": "2026-04-13T09:10:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+Notes:
+- `password` is never returned.
+- `worker` can be `null` when user has not created worker profile.
+- `worker.profilePhotoUrl` is derived from latest `PROFILE_PHOTO` document.
 
 ### FE integration flow (Google)
 1. FE logs user in with Google and gets `idToken`.
@@ -310,6 +354,20 @@ Common errors:
 ### `GET /users/workers/:id/documents` (Auth)
 Get worker documents.
 
+### `DELETE /users/workers/:workerId/documents/:docId` (Auth)
+Delete one worker document.
+
+Path params:
+- `workerId` (number): worker id
+- `docId` (number): document id
+
+Success response:
+- `200` with empty body
+
+Common errors:
+- `401` Missing or invalid token
+- `404` Worker document not found
+
 ### `POST /users/workers/:id/training-attempts` (Auth)
 Submit training score.
 
@@ -524,8 +582,16 @@ Body:
 }
 ```
 
-### `GET /applications/job-posting/:id` (Auth + `ADMIN`)
-Get all applications by job posting.
+### `GET /applications/job-posting/:id` (Auth + `ADMIN` | `FAMILY`)
+Get all applications for a job posting, including full worker profile info.
+
+Response includes per application:
+- `coverLetter`, `status`, `createdAt`
+- `worker`: all profile fields (`bio`, `experience`, `jobTypes`, `languages`, `services`, `hourlyRate`, `dailyRate`, `rating`, `reviewCount`, `profilePhotoUrl`, `availability`, `certifications`, `nonSmoker`, `hasReliableTransportation`, ...)
+  - `user`: `id`, `name`, `email`, `phone`
+  - `documents`: list of `WorkerDocument` (fileUrl, type, verificationStatus, ...)
+  - `references`: list of `WorkerReference` (name, relation, phone, notes, ...)
+  - `reviews`: list of reviews with `rating`, `comment`, and family name who wrote it
 
 ### `GET /applications/worker/:id` (Auth)
 Get all applications by worker.
