@@ -251,7 +251,12 @@ export class AuthService {
       this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
     const resetLink = `${appUrl}/reset-password?token=${token}`;
 
-    await this.mailService.sendPasswordResetEmail(email, resetLink);
+    // Fire-and-forget: don't block the HTTP response on SMTP
+    this.mailService.sendPasswordResetEmail(email, resetLink).catch((err) => {
+      this.logger.error(
+        `Failed to send reset email to ${email}: ${String(err)}`,
+      );
+    });
 
     return { message: 'If that email exists, a reset link has been sent.' };
   }
